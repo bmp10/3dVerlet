@@ -1,11 +1,14 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls';
+
+const bg = document.getElementById("bg")
 
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 const renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("bg"),
+    canvas: bg,
 });
 
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -25,8 +28,11 @@ const pointlight = new THREE.PointLight(0xffffff);
 pointlight.position.set(5, 5, 5);
 const ambientlight = new THREE.AmbientLight(0xffffff);
 scene.add(pointlight, ambientlight);
+
 const lighthelper = new THREE.PointLightHelper(pointlight);
-scene.add(lighthelper);
+const gridhelper = new THREE.GridHelper(200, 50);
+scene.add(lighthelper, gridhelper);
+
 
 
 let deg = 0;
@@ -35,10 +41,14 @@ function rad(degrees) {
     return degrees * (Math.PI / 180);
 }
 
+const controls = new OrbitControls(camera, renderer.domElement)
+
 function animate() {
     requestAnimationFrame(animate);
 
-    pointlight.position.set(Math.cos(rad(deg)) * 20, 0, Math.sin(rad(deg)) * 20);
+    //sphere.position.y -= 1
+
+    pointlight.position.set(Math.sin(rad(deg)) * 20, 0, Math.cos(rad(deg)) * 20);
 
     deg ++;
 
