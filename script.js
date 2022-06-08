@@ -13,9 +13,9 @@ class Sphere {
         this.y = y;
         this.z = z;
         this.radius = radius;
-        this.oldx = x + Math.random();
-        this.oldy = y + Math.random();
-        this.oldz = z + Math.random();
+        this.oldx = x + Math.random() - 0.5;
+        this.oldy = y + Math.random() - 0.5;
+        this.oldz = z + Math.random() - 0.5;
         this.accx = 0;
         this.accy = 0;
         this.accz = 0;
