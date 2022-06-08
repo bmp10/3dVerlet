@@ -112,7 +112,7 @@ var now;
 
 var count = 0;
 const interval = 1;
-const max = 100;
+const max = 1000;
 var substeps = 8;
 
 function substep() {
