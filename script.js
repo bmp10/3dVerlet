@@ -1,58 +1,156 @@
+import * as render from './render.js';
 import * as THREE from 'https://unpkg.com/three/build/three.module.js';
-import {OrbitControls} from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';
-
-const bg = document.getElementById("bg")
-
-const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-
-const renderer = new THREE.WebGLRenderer({
-    canvas: bg,
-});
-
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(1000, 1000);
-camera.position.setZ(30);
-
-renderer.render(scene, camera)
-
-const geometry = new THREE.SphereGeometry(10, 32, 32);
-const material = new THREE.MeshStandardMaterial({color: 0xff6347});
-const sphere = new THREE.Mesh(geometry, material);
-
-scene.add(sphere);
 
 
-const pointlight = new THREE.PointLight(0xffffff);
-pointlight.position.set(5, 5, 5);
-const ambientlight = new THREE.AmbientLight(0xffffff);
-scene.add(pointlight, ambientlight);
+const gravity = -1000;
 
-const lighthelper = new THREE.PointLightHelper(pointlight);
-const gridhelper = new THREE.GridHelper(200, 50);
-scene.add(lighthelper, gridhelper);
+const worldpos = [0, 0, 0];
+const worldradius = 400;
 
+class Sphere {
+    constructor(x, y, z, radius) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.radius = radius;
+        this.oldx = x + Math.random();
+        this.oldy = y + Math.random();
+        this.oldz = z + Math.random();
+        this.accx = 0;
+        this.accy = 0;
+        this.accz = 0;
+    }
 
+    updatepos(dt) {
+        const velx = this.x - this.oldx;
+        const vely = this.y - this.oldy;
+        const velz = this.z - this.oldz;
 
-let deg = 0;
+        this.oldx = this.x;
+        this.oldy = this.y;
+        this.oldz = this.z;
 
-function rad(degrees) {
-    return degrees * (Math.PI / 180);
+        this.x = this.x + velx + this.accx * dt * dt;
+        this.y = this.y + vely + this.accy * dt * dt;
+        this.z = this.z + velz + this.accz * dt * dt;
+
+        this.accx = 0;
+        this.accy = 0;
+        this.accz = 0;
+    }
+
+    accelerate(accx, accy, accz) {
+        this.accx += accx;
+        this.accy += accy;
+        this.accz += accz;
+    }
 }
 
-const controls = new OrbitControls(camera, renderer.domElement)
+let spheres = [];//[new Sphere(500, 500, 30)];
 
-function animate() {
-    requestAnimationFrame(animate);
+function applygravity(sphere, index, array) {
+    sphere.accelerate(0, gravity, 0);
+}
+function updatepositions(sphere, index, array) {
+    sphere.updatepos((now - start) / 1000 / substeps);
+}
+function applyconstraint(sphere, index, array) {
+    const diffx = sphere.x - worldpos[0];
+    const diffy = sphere.y - worldpos[1];
+    const diffz = sphere.z - worldpos[0];
 
-    //sphere.position.y -= 1
+    const dist2 = diffx ** 2 + diffy ** 2 + diffz ** 2;
 
-    pointlight.position.set(Math.sin(rad(deg)) * 20, 0, Math.cos(rad(deg)) * 20);
-
-    deg ++;
-
-    renderer.render(scene, camera);
+    const radiusdiff = worldradius - sphere.radius;
+    if (dist2 > radiusdiff ** 2) {
+        const dist = dist2 ** 0.5;
+        const unitx = diffx / dist;
+        const unity = diffy / dist;
+        const unitz = diffz / dist;
+        sphere.x = worldpos[0] + unitx * (worldradius - sphere.radius);
+        sphere.y = worldpos[1] + unity * (worldradius - sphere.radius);
+        sphere.z = worldpos[2] + unitz * (worldradius - sphere.radius);
+    }
 }
 
-animate()
+function solvecollisions() {
+    for (let i = 0; i < spheres.length; i++) {
+        const sphere1 = spheres[i];
+        for (let j = i + 1; j < spheres.length; j++) {
+            const sphere2 = spheres[j];
+            const axisx = sphere1.x - sphere2.x;
+            const axisy = sphere1.y - sphere2.y;
+            const axisz = sphere1.z - sphere2.z;
+            const dist2 = axisx ** 2 + axisy ** 2 + axisz ** 2;
+
+            const mindist = sphere1.radius + sphere2.radius;
+
+            if (dist2 > 0) {
+                if (dist2 < mindist ** 2) {
+                    const dist = dist2 ** 0.5;
+                    const unitx = axisx / dist;
+                    const unity = axisy / dist;
+                    const unitz = axisz / dist;
+    
+                    const delta = mindist - dist;
+    
+                    sphere1.x += (sphere1.radius / 100) * delta * unitx;
+                    sphere1.y += (sphere1.radius / 100) * delta * unity;
+                    sphere1.z += (sphere1.radius / 100) * delta * unitz;
+    
+                    sphere2.x -= (sphere2.radius / 100) * delta * unitx;
+                    sphere2.y -= (sphere2.radius / 100) * delta * unity;
+                    sphere2.z -= (sphere2.radius / 100) * delta * unitz;
+                }
+            }
+        }
+    }
+}
+
+var start = Date.now();
+var now;
+
+var count = 0;
+const interval = 1;
+const max = 100;
+var substeps = 8;
+
+function substep() {
+    for (let i = 0; i < substeps; i++) {
+        spheres.forEach(applygravity);
+        spheres.forEach(updatepositions);
+        spheres.forEach(applyconstraint);
+        solvecollisions();
+    }
+}
+
+let spheremeshes = [];
+
+function newsphere(x, y, z, radius) {
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 32), new THREE.MeshStandardMaterial({color: 0xff6347}));
+    sphere.position.set(x, y, z);
+
+    render.scene.add(sphere);
+    spheremeshes.push(sphere);
+}
+
+function update() {
+    if (count < interval * max && count % interval == 0) {
+        //spheres.push(new Sphere(200, 500, 10));
+        spheres.push(new Sphere(800, 500, 800, 10));
+        newsphere(800, 500, 800, 10);
+    }
+    count ++;
+
+    now = Date.now();
+
+    substep();
+    
+    for (let i = 0; i < spheres.length; i++) {
+        spheremeshes[i].position.set(spheres[i].x, spheres[i].y, spheres[i].z);
+    }
+
+    start = now;
+}
+
+setInterval(update, 10);
